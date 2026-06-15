@@ -1,0 +1,40 @@
+# ─────────────────────────────────────────────
+#  Dữ liệu runtime — app TỰ TẠO LẠI khi chạy.
+#  KHÔNG đẩy lịch sử họp / trí nhớ / dự án cá nhân lên Git.
+# ─────────────────────────────────────────────
+meetings/
+memory/
+projects/
+
+# ─── Python ───
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# ─── Bí mật / biến môi trường ───
+.env
+.env.*
+!.env.example
+*.credentials.json
+.credentials.json
+
+# ─── Dữ liệu phiên Claude Code (KHÔNG thuộc app) ───
+.claude/sessions/
+.claude/projects/
+.claude/backups/
+.claude/shell-snapshots/
+.claude/session-env/
+.claude/.credentials.json
+.claude/.last-cleanup
+
+# ─── Bản xuất / file tạm / OS ───
+*.docx
+Thumbs.db
+.DS_Store
+_wstest*.py
+
+# ─── File rác ───
+/Nhắc

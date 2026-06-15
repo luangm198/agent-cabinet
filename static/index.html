@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Meeting with the A.I Team</title>
+<style>
+  :root {
+    --bg: #0f1115; --panel: #171a21; --panel2: #1e222b; --text: #e7e9ee;
+    --muted: #8b93a7; --host: #2d8cff; --border: #272c37;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; height: 100vh; display: flex; flex-direction: column;
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  header {
+    padding: 10px 16px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 12px; background: var(--panel); flex-wrap: wrap;
+  }
+  header h1 { font-size: 15px; margin: 0; font-weight: 650; white-space: nowrap; }
+  .mtg-title { font-size: 12px; color: var(--muted); max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .toolbar { display: flex; gap: 6px; }
+  .tbtn {
+    border: 1px solid var(--border); background: var(--panel2); color: var(--text);
+    border-radius: 8px; padding: 5px 10px; font-size: 12.5px; cursor: pointer;
+  }
+  .tbtn:hover { border-color: var(--muted); }
+  .tbtn.on { background: var(--host); color: #fff; border-color: var(--host); }
+  .roster { display: flex; gap: 7px; flex-wrap: wrap; margin-left: auto; }
+  .chip {
+    display: flex; align-items: center; gap: 6px; padding: 4px 10px;
+    border-radius: 999px; font-size: 12px; background: var(--panel2);
+    border: 1px solid var(--border); cursor: pointer; user-select: none; transition: opacity .15s;
+  }
+  .chip:hover { border-color: var(--muted); }
+  .chip.off { opacity: .4; }
+  .chip.off .nm { text-decoration: line-through; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; }
+
+  #chat {
+    flex: 1; overflow-y: auto; padding: 22px;
+    display: flex; flex-direction: column; gap: 16px;
+    max-width: 860px; width: 100%; margin: 0 auto;
+  }
+  .msg { display: flex; gap: 12px; align-items: flex-start; animation: fade .25s ease; }
+  .msg.host { flex-direction: row-reverse; }
+  @keyframes fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  .avatar {
+    width: 38px; height: 38px; border-radius: 50%; flex-shrink: 0;
+    display: grid; place-items: center; font-size: 19px;
+    background: var(--panel2); border: 2px solid var(--border);
+  }
+  .body { max-width: 78%; }
+  .who { font-size: 12px; color: var(--muted); margin: 0 0 4px 2px; }
+  .msg.host .who { text-align: right; }
+  .bubble {
+    background: var(--panel); border: 1px solid var(--border);
+    padding: 11px 14px; border-radius: 14px; line-height: 1.55;
+    white-space: pre-wrap; word-wrap: break-word; font-size: 14.5px;
+  }
+  .msg.host .bubble { background: var(--host); border-color: var(--host); color: #fff; }
+  .role { font-size: 11px; opacity: .8; }
+  .typing { display: inline-flex; gap: 4px; padding: 4px 2px; }
+  .typing span { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); animation: blink 1.2s infinite both; }
+  .typing span:nth-child(2){ animation-delay: .2s; }
+  .typing span:nth-child(3){ animation-delay: .4s; }
+  @keyframes blink { 0%,80%,100%{opacity:.2;} 40%{opacity:1;} }
+  .status { font-style: italic; color: var(--muted); font-size: 13px; opacity: .9; }
+  /* yellow "working: …" caption */
+  .working { display: inline-flex; align-items: center; gap: 7px; color: #e8b84b; font-size: 12.5px; font-style: italic; }
+  .working .wtask { font-style: normal; opacity: .95; }
+  .working .typing span { background: #e8b84b; }
+  .img-attach { margin-top: 8px; }
+  .img-attach img { max-width: 100%; max-height: 360px; border-radius: 10px; display: block; cursor: zoom-in; border: 1px solid var(--border); }
+  .img-cap { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .sys { text-align: center; color: var(--muted); font-size: 12.5px; }
+
+  /* documents attached by the Host */
+  .upload-card { display: flex; align-items: center; gap: 10px; background: var(--panel2); border: 1px solid var(--border); border-radius: 12px; padding: 9px 12px; text-decoration: none; color: var(--text); max-width: 320px; }
+  .upload-card:hover { border-color: var(--host); }
+  .upload-ic { font-size: 22px; flex-shrink: 0; }
+  .upload-meta { min-width: 0; }
+  .upload-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .upload-sub { font-size: 11px; color: var(--muted); }
+  .upload-thumb { max-width: 240px; max-height: 220px; border-radius: 10px; display: block; border: 1px solid var(--border); cursor: zoom-in; }
+  .msg.host .upload-card { background: rgba(255,255,255,.14); border-color: rgba(255,255,255,.25); color: #fff; }
+
+  /* attach button in the composer */
+  .attach-btn { display: grid; place-items: center; width: 44px; flex-shrink: 0; border: 1px solid var(--border); background: var(--panel2); color: var(--text); border-radius: 12px; cursor: pointer; font-size: 18px; }
+  .attach-btn:hover { border-color: var(--host); }
+  .attach-btn:disabled { opacity: .5; cursor: default; }
+  /* overlay while dragging a file */
+  #dropHint { position: fixed; inset: 0; z-index: 60; display: none; align-items: center; justify-content: center; background: rgba(45,140,255,.12); border: 3px dashed var(--host); }
+  #dropHint.show { display: flex; }
+  #dropHint span { background: var(--panel); border: 1px solid var(--host); border-radius: 14px; padding: 18px 26px; font-size: 16px; }
+
+  footer { border-top: 1px solid var(--border); background: var(--panel); padding: 12px; display: flex; justify-content: center; }
+  .composer { display: flex; gap: 10px; width: 100%; max-width: 860px; }
+  textarea {
+    flex: 1; resize: none; background: var(--panel2); color: var(--text);
+    border: 1px solid var(--border); border-radius: 12px; padding: 11px 13px;
+    font: inherit; font-size: 14.5px; max-height: 140px;
+  }
+  textarea:focus { outline: none; border-color: var(--host); }
+  button.send { border: 0; border-radius: 12px; padding: 0 20px; font-weight: 600; background: var(--host); color: #fff; cursor: pointer; font-size: 14px; }
+  button.send:disabled { opacity: .5; cursor: default; }
+
+  /* Modal */
+  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: none; align-items: center; justify-content: center; z-index: 50; }
+  .overlay.show { display: flex; }
+  .modal { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; width: 460px; max-width: 92vw; max-height: 82vh; overflow: auto; padding: 18px; }
+  .modal h2 { margin: 0 0 14px; font-size: 16px; }
+  .modal label.fld { display: block; font-size: 12px; color: var(--muted); margin: 0 0 6px; }
+  .modal input[type=text] { width: 100%; background: var(--panel2); border: 1px solid var(--border); color: var(--text); border-radius: 9px; padding: 9px 11px; font: inherit; margin-bottom: 14px; }
+  .agent-pick { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 10px; margin-bottom: 7px; cursor: pointer; }
+  .agent-pick input { width: 17px; height: 17px; }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+  .modal-actions .primary { background: var(--host); color: #fff; border: 0; border-radius: 9px; padding: 8px 16px; font-weight: 600; cursor: pointer; }
+  .modal-actions .ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); border-radius: 9px; padding: 8px 16px; cursor: pointer; }
+  .hist-item { display: flex; align-items: center; gap: 10px; padding: 10px; border: 1px solid var(--border); border-radius: 10px; margin-bottom: 8px; }
+  .hist-item:hover { border-color: var(--muted); }
+  .hist-main { flex: 1; cursor: pointer; min-width: 0; }
+  .hist-title { font-size: 14px; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hist-sub { font-size: 11.5px; color: var(--muted); }
+  .hist-del { background: transparent; border: 0; color: var(--muted); cursor: pointer; font-size: 16px; padding: 4px 8px; }
+  .hist-del:hover { color: #ff6b6b; }
+  .empty { color: var(--muted); text-align: center; padding: 24px; }
+  /* memory card inside the modal */
+  .mem-card { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; }
+  .mem-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; font-size: 13.5px; }
+  .mem-body { margin: 0; white-space: pre-wrap; word-break: break-word; font-size: 12.5px; color: var(--muted); font-family: inherit; max-height: 180px; overflow: auto; }
+</style>
+</head>
+<body>
+  <header>
+    <h1>🗣️ Meeting with the A.I Team</h1>
+    <span class="mtg-title" id="mtgTitle"></span>
+    <div class="toolbar">
+      <button class="tbtn" id="btnProject" title="Switch/create project — each project has its own meetings + memory + documents">📁 Projects</button>
+      <button class="tbtn" id="btnNew">➕ New</button>
+      <button class="tbtn" id="btnHistory">🕘 History</button>
+      <button class="tbtn" id="btnRelay" title="ON: agents can @mention each other and continue automatically (limited to a few hops). OFF: only the Host starts turns.">🔄 Auto-relay: OFF</button>
+      <button class="tbtn" id="btnSaveMem" title="End of meeting: each enabled agent distills & saves to its own memory">💾 Save memory</button>
+      <button class="tbtn" id="btnMemory" title="View/delete each agent's memory">🧠 Memory</button>
+      <button class="tbtn" id="btnTeam" title="Add/edit/delete team sub-agents">👥 Team</button>
+      <button class="tbtn" id="btnExport">⬇️ Word</button>
+    </div>
+    <div class="roster" id="roster"></div>
+  </header>
+
+  <div id="chat"></div>
+
+  <footer>
+    <div class="composer">
+      <button class="attach-btn" id="attachBtn" title="Attach document / image (PDF, Word, Excel, TXT, CSV, images…)">📎</button>
+      <input type="file" id="fileInput" multiple style="display:none"
+             accept=".pdf,.doc,.docx,.txt,.csv,.tsv,.md,.json,.xlsx,.png,.jpg,.jpeg,.gif,.webp,.bmp,image/*" />
+      <textarea id="input" rows="1" placeholder="Say something to the team… (Enter to send, Shift+Enter for a newline). Address one person: @tung or 'Tung, …'. Click 📎 or drag-and-drop a file to bring a document into the meeting."></textarea>
+      <button class="send" id="send">Send</button>
+    </div>
+  </footer>
+
+  <!-- Overlay shown when dragging a file onto the page -->
+  <div id="dropHint"><span>📎 Drop files here to add them to the meeting</span></div>
+
+  <!-- Modal: new meeting -->
+  <div class="overlay" id="newOverlay">
+    <div class="modal">
+      <h2>➕ Create a new meeting</h2>
+      <label class="fld">Meeting name (leave blank to auto-name by time)</label>
+      <input type="text" id="newTitle" placeholder="e.g. Brainstorm the AI idol app" />
+      <label class="fld">Select participants</label>
+      <div id="agentPicks"></div>
+      <div class="modal-actions">
+        <button class="ghost" data-close="newOverlay">Cancel</button>
+        <button class="primary" id="createMeeting">Create &amp; join</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: history -->
+  <div class="overlay" id="histOverlay">
+    <div class="modal">
+      <h2>🕘 Meeting history</h2>
+      <div id="histList"></div>
+      <div class="modal-actions">
+        <button class="ghost" data-close="histOverlay">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: memory -->
+  <div class="overlay" id="memOverlay">
+    <div class="modal">
+      <h2>🧠 Project memory</h2>
+      <div id="memList"></div>
+      <div class="modal-actions">
+        <button class="ghost" data-close="memOverlay">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: project -->
+  <div class="overlay" id="projectOverlay">
+    <div class="modal">
+      <h2>📁 Projects</h2>
+      <label class="fld">Create a new project (its own meetings + memory + documents)</label>
+      <div style="display:flex; gap:8px; margin-bottom:14px;">
+        <input type="text" id="newProjectName" placeholder="e.g. AI idol app" style="margin:0;" />
+        <button class="primary" id="createProject" style="white-space:nowrap; border:0; border-radius:9px; padding:8px 14px; font-weight:600; background:var(--host); color:#fff; cursor:pointer;">Create</button>
+      </div>
+      <label class="fld">Switch to project</label>
+      <div id="projectList"></div>
+      <div class="modal-actions">
+        <button class="ghost" data-close="projectOverlay">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: manage team -->
+  <div class="overlay" id="teamOverlay">
+    <div class="modal">
+      <h2>👥 Manage team</h2>
+      <p class="fld" style="margin:-6px 0 12px;">Changes take effect in NEW meetings (recreate / switch project). The key cannot be changed after creation.</p>
+      <div id="teamList"></div>
+      <div class="modal-actions">
+        <button class="primary" id="addAgentBtn" style="border:0; border-radius:9px; padding:8px 16px; font-weight:600; background:var(--host); color:#fff; cursor:pointer;">➕ Add agent</button>
+        <button class="ghost" data-close="teamOverlay">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: add/edit a single agent -->
+  <div class="overlay" id="agentOverlay">
+    <div class="modal">
+      <h2 id="agentFormTitle">Add agent</h2>
+      <label class="fld">Key (lowercase, e.g. "qa"; CANNOT be changed after creation)</label>
+      <input type="text" id="agKey" placeholder="e.g. qa" />
+      <div style="display:flex; gap:10px;">
+        <div style="flex:1;">
+          <label class="fld">Display name</label>
+          <input type="text" id="agName" placeholder="e.g. Quan" />
+        </div>
+        <div style="width:90px;">
+          <label class="fld">Emoji</label>
+          <input type="text" id="agEmoji" placeholder="🧪" />
+        </div>
+        <div style="width:110px;">
+          <label class="fld">Color</label>
+          <input type="color" id="agColor" value="#3D9970" style="width:100%; height:40px; padding:2px; background:var(--panel2); border:1px solid var(--border); border-radius:9px; margin-bottom:14px;" />
+        </div>
+      </div>
+      <label class="fld">Role</label>
+      <input type="text" id="agRole" placeholder="e.g. QA / Testing" />
+      <label class="fld">Brain (model)</label>
+      <select id="agModel" style="width:100%; background:var(--panel2); border:1px solid var(--border); color:var(--text); border-radius:9px; padding:9px 11px; font:inherit; margin-bottom:14px;">
+        <option value="opus">opus (most powerful)</option>
+        <option value="sonnet">sonnet (balanced)</option>
+        <option value="haiku">haiku (fast/light)</option>
+      </select>
+      <label class="fld">Capabilities <span style="opacity:.7">(applies to NEW meetings)</span></label>
+      <div style="border:1px solid var(--border); border-radius:9px; padding:10px 12px; margin-bottom:14px;">
+        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px;">
+          <input type="checkbox" id="capTools" style="width:16px;height:16px;">
+          <span><b>Use tools</b> <span style="color:var(--muted)">— web search, read files</span></span>
+        </label>
+        <div id="capSub" style="margin:8px 0 0 22px; display:flex; flex-direction:column; gap:7px;">
+          <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px;">
+            <input type="checkbox" id="capMcp" style="width:16px;height:16px;">
+            <span>MCP <span style="color:var(--muted)">— Notion, Drive, Gmail… (some can send/create)</span></span>
+          </label>
+          <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px;">
+            <input type="checkbox" id="capSkills" style="width:16px;height:16px;">
+            <span>Skills <span style="color:var(--muted)">— Claude Code skills (/skill-name)</span></span>
+          </label>
+          <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px;">
+            <input type="checkbox" id="capFull" style="width:16px;height:16px;">
+            <span style="color:#ff6b6b"><b>Full control</b> — write/edit/delete &amp; run commands</span>
+          </label>
+          <div id="capFullWarn" style="display:none; font-size:11.5px; color:#ff6b6b; margin-left:24px;">⚠️ Lets this agent modify/delete files and run commands on your machine.</div>
+        </div>
+      </div>
+      <label class="fld">Personality / system prompt (persona)</label>
+      <textarea id="agPersona" rows="8" placeholder="You are … Personality … How you speak in meetings …" style="width:100%; background:var(--panel2); color:var(--text); border:1px solid var(--border); border-radius:9px; padding:10px 12px; font:inherit; font-size:13px; resize:vertical; margin-bottom:14px;"></textarea>
+      <div class="modal-actions">
+        <button class="ghost" data-close="agentOverlay">Cancel</button>
+        <button class="primary" id="saveAgentBtn" style="border:0; border-radius:9px; padding:8px 16px; font-weight:600; background:var(--host); color:#fff; cursor:pointer;">Save</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+const chat = document.getElementById('chat');
+const input = document.getElementById('input');
+const sendBtn = document.getElementById('send');
+const roster = document.getElementById('roster');
+const mtgTitle = document.getElementById('mtgTitle');
+
+let agents = {};
+const enabledKeys = new Set();
+let ws, currentInit = {}, currentMeetingId = null;
+let hadConnection = false, reconnectTimer = null;
+let bubbles = {};   // key -> the streaming bubble of each agent (running in parallel)
+let autoRelay = false;   // auto-relay turns between agents (toggle)
+let currentProjectId = null;   // currently open project (each project has its own meetings + memory)
+let projects = [];             // list of projects (cache for the header)
+
+function el(tag, cls, html) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (html !== undefined) e.innerHTML = html;
+  return e;
+}
+function scroll() { chat.scrollTop = chat.scrollHeight; }
+function addSysLine(text) { chat.appendChild(el('div', 'sys', text)); scroll(); }
+
+// ---------- render messages ----------
+function addHostMessage(text) {
+  const wrap = el('div', 'msg host');
+  wrap.appendChild(el('div', 'avatar', '🧑'));
+  const body = el('div', 'body');
+  body.appendChild(el('div', 'who', 'You (Host)'));
+  const bubble = el('div', 'bubble');
+  bubble.textContent = text;
+  body.appendChild(bubble);
+  wrap.appendChild(body);
+  chat.appendChild(wrap);
+  scroll();
+}
+function fileIcon(name) {
+  const ext = (String(name).split('.').pop() || '').toLowerCase();
+  if (ext === 'pdf') return '📕';
+  if (ext === 'doc' || ext === 'docx') return '📘';
+  if (['xls','xlsx','csv','tsv'].includes(ext)) return '📊';
+  if (['txt','md','json','log','srt','vtt'].includes(ext)) return '📄';
+  return '📎';
+}
+// Host message with an attached document/image brought into the meeting
+function addHostUpload(upload) {
+  const wrap = el('div', 'msg host');
+  wrap.appendChild(el('div', 'avatar', '🧑'));
+  const body = el('div', 'body');
+  body.appendChild(el('div', 'who', 'You (Host)'));
+  if (upload.is_image) {
+    const a = document.createElement('a');
+    a.href = upload.url; a.target = '_blank';
+    const img = document.createElement('img');
+    img.className = 'upload-thumb'; img.src = upload.url; img.alt = upload.name || '';
+    a.appendChild(img); body.appendChild(a);
+    const cap = el('div', 'upload-sub'); cap.textContent = '🖼️ ' + (upload.name || '') + ' · added to the meeting';
+    cap.style.marginTop = '4px'; body.appendChild(cap);
+  } else {
+    const card = document.createElement('a');
+    card.className = 'upload-card'; card.href = upload.url; card.target = '_blank';
+    const ic = el('span', 'upload-ic'); ic.textContent = fileIcon(upload.name);
+    const meta = el('span', 'upload-meta');
+    const nm = el('span', 'upload-name'); nm.textContent = upload.name || 'document';
+    const sub = el('span', 'upload-sub'); sub.textContent = 'Document added to the meeting · click to open';
+    meta.appendChild(nm); meta.appendChild(sub);
+    card.appendChild(ic); card.appendChild(meta);
+    body.appendChild(card);
+  }
+  wrap.appendChild(body);
+  chat.appendChild(wrap);
+  scroll();
+}
+function agentBubble(a) {
+  const wrap = el('div', 'msg');
+  const av = el('div', 'avatar', a ? a.emoji : '🤖');
+  if (a) av.style.borderColor = a.color;
+  wrap.appendChild(av);
+  const body = el('div', 'body');
+  const nm = a ? `<b style="color:${a.color}">${a.name}</b> <span class="role">· ${a.role}</span>` : '';
+  body.appendChild(el('div', 'who', nm));
+  const bubble = el('div', 'bubble');
+  bubble.style.borderColor = a ? a.color + '55' : 'var(--border)';
+  body.appendChild(bubble);
+  wrap.appendChild(body);
+  chat.appendChild(wrap);
+  return bubble;
+}
+// yellow caption "⏳ working: «task» — <tool>" + 3 blinking dots
+function renderWorking(b) {
+  if (!b._work) return;
+  b._work.innerHTML = '';
+  const t = (b._task || '').trim();
+  let txt = '⏳ working';
+  if (t) txt += ': «' + (t.length > 90 ? t.slice(0, 90) + '…' : t) + '»';
+  if (b._tool) txt += ' — ' + b._tool;
+  const label = el('span', 'wtask'); label.textContent = txt;
+  b._work.appendChild(label);
+  b._work.appendChild(el('span', 'typing', '<span></span><span></span><span></span>'));
+}
+function clearWorking(b) { if (b && b._work) { b._work.remove(); b._work = null; } }
+
+function startAgentMessage(key, task) {
+  const bubble = agentBubble(agents[key]);
+  bubble._textNode = null; bubble._hasText = false;
+  bubble._task = task || ''; bubble._tool = null;
+  bubble._work = el('div', 'working');
+  bubble.appendChild(bubble._work);
+  renderWorking(bubble);
+  bubbles[key] = bubble;
+  scroll();
+}
+function setAgentStatus(key, text) {
+  const b = bubbles[key];
+  if (!b || b._hasText) return;     // once it starts speaking, stop showing the caption
+  b._tool = text; renderWorking(b);
+  scroll();
+}
+function appendToken(key, text) {
+  const b = bubbles[key];
+  if (!b) return;
+  clearWorking(b);
+  if (!b._textNode) { b._textNode = document.createElement('span'); b.appendChild(b._textNode); }
+  b._textNode.textContent += text;
+  b._hasText = true;
+  scroll();
+}
+function addAgentImage(key, src, name) {
+  const b = bubbles[key];
+  if (!b) return;
+  clearWorking(b);
+  const wrap = el('div', 'img-attach');
+  const img = document.createElement('img');
+  img.src = src; img.alt = name || '';
+  img.addEventListener('click', () => window.open(src, '_blank'));
+  wrap.appendChild(img);
+  if (name) wrap.appendChild(el('div', 'img-cap', '🖼️ ' + name));
+  b.appendChild(wrap);
+  b._textNode = null;
+  scroll();
+}
+function finishAgentMessage(key) {
+  const b = bubbles[key];
+  if (!b) return;
+  clearWorking(b);
+  if (!b._hasText && !b.querySelector('.img-attach')) b.appendChild(el('span', 'status', '(no response)'));
+  delete bubbles[key];
+}
+// render one old log entry (non-streaming)
+function renderLogEntry(e) {
+  if (e.upload) { addHostUpload(e.upload); return; }
+  if ((e.speaker || '').startsWith('Host')) { addHostMessage(e.text || ''); return; }
+  const a = Object.values(agents).find(x => x.name === e.speaker);
+  const bubble = agentBubble(a);
+  bubble.textContent = e.text || '';
+  scroll();
+}
+
+// ---------- roster / toggle ----------
+function addChip(a) {
+  const chip = el('div', 'chip');
+  chip.dataset.key = a.key;
+  chip.title = 'Click to enable/disable — a disabled agent will not speak';
+  chip.innerHTML = `<span class="dot" style="background:${a.color}"></span>${a.emoji} <span class="nm">${a.name}</span> <span style="color:var(--muted)">· ${a.role}</span>`;
+  chip.addEventListener('click', () => {
+    if (enabledKeys.has(a.key)) { enabledKeys.delete(a.key); chip.classList.add('off'); addSysLine(`🔕 Disabled ${a.emoji} ${a.name} — will not speak in SUBSEQUENT messages.`); }
+    else { enabledKeys.add(a.key); chip.classList.remove('off'); addSysLine(`🔔 Enabled ${a.emoji} ${a.name}.`); }
+  });
+  roster.appendChild(chip);
+}
+
+// ---------- render the whole meeting ----------
+function renderMeeting(m) {
+  currentMeetingId = m.id;
+  currentInit = { meeting_id: m.id }; // reconnect will reopen this exact meeting
+  if (m.project_id) { currentProjectId = m.project_id; updateProjectHeader(); }
+  mtgTitle.textContent = '— ' + m.title;
+  agents = {}; enabledKeys.clear(); roster.innerHTML = '';
+  m.agents.forEach(a => { agents[a.key] = a; enabledKeys.add(a.key); addChip(a); });
+  chat.innerHTML = ''; bubbles = {};
+  if (!m.log || m.log.length === 0) {
+    addSysLine('New meeting room. Type a topic to begin. Click a name above to enable/disable someone.');
+  } else {
+    m.log.forEach(renderLogEntry);
+  }
+  scroll();
+}
+
+// ---------- WebSocket ----------
+function connect() {
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  ws = new WebSocket(`${proto}://${location.host}/ws`);
+  ws.onopen = () => {
+    if (hadConnection) addSysLine('🔌 Reconnected to the server.');
+    hadConnection = true;
+    ws.send(JSON.stringify(Object.assign({ type: 'init' }, currentInit)));
+  };
+  ws.onmessage = (ev) => {
+    const m = JSON.parse(ev.data);
+    if (m.type === 'meeting') renderMeeting(m);
+    else if (m.type === 'agent_start') startAgentMessage(m.key, m.task);
+    else if (m.type === 'tool') setAgentStatus(m.key, m.text);
+    else if (m.type === 'image') addAgentImage(m.key, m.src, m.name);
+    else if (m.type === 'sys') addSysLine(m.text);
+    else if (m.type === 'token') appendToken(m.key, m.text);
+    else if (m.type === 'agent_done') finishAgentMessage(m.key);
+  };
+  ws.onclose = () => { bubbles = {}; if (!reconnectTimer) reconnectTimer = setTimeout(() => { reconnectTimer = null; connect(); }, 1500); };
+  ws.onerror = () => { try { ws.close(); } catch (e) {} };
+}
+
+function send() {
+  const text = input.value.trim();
+  if (!text) return;
+  if (!ws || ws.readyState !== 1) { addSysLine('⏳ Reconnecting… try again in a moment.'); return; }
+  addHostMessage(text);
+  ws.send(JSON.stringify({ type: 'chat', text, enabled: Array.from(enabledKeys), relay: autoRelay }));
+  input.value = ''; input.style.height = 'auto'; input.focus();   // NOT locked: assign work, then keep typing right away
+}
+
+// ---------- toolbar / modal ----------
+function openOverlay(id) { document.getElementById(id).classList.add('show'); }
+function closeOverlay(id) { document.getElementById(id).classList.remove('show'); }
+document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => closeOverlay(b.dataset.close)));
+document.querySelectorAll('.overlay').forEach(o => o.addEventListener('click', e => { if (e.target === o) o.classList.remove('show'); }));
+
+// New
+document.getElementById('btnNew').addEventListener('click', async () => {
+  const res = await fetch('/agents'); const list = await res.json();
+  const box = document.getElementById('agentPicks'); box.innerHTML = '';
+  list.forEach(a => {
+    const row = el('label', 'agent-pick');
+    row.innerHTML = `<input type="checkbox" value="${a.key}" checked><span class="dot" style="background:${a.color}"></span><span>${a.emoji} <b>${a.name}</b> · ${a.role}</span>`;
+    box.appendChild(row);
+  });
+  document.getElementById('newTitle').value = '';
+  openOverlay('newOverlay');
+});
+document.getElementById('createMeeting').addEventListener('click', () => {
+  const title = document.getElementById('newTitle').value.trim();
+  const picked = Array.from(document.querySelectorAll('#agentPicks input:checked')).map(i => i.value);
+  if (picked.length === 0) { alert('Select at least 1 participant.'); return; }
+  closeOverlay('newOverlay');
+  currentInit = { title, agents: picked, project_id: currentProjectId };
+  if (ws && ws.readyState === 1) ws.send(JSON.stringify(Object.assign({ type: 'init' }, currentInit)));
+});
+
+// History
+document.getElementById('btnHistory').addEventListener('click', async () => {
+  const res = await fetch('/meetings?project=' + encodeURIComponent(currentProjectId || '')); const list = await res.json();
+  const box = document.getElementById('histList'); box.innerHTML = '';
+  if (!list.length) { box.appendChild(el('div', 'empty', 'No meetings saved yet.')); }
+  list.forEach(it => {
+    const row = el('div', 'hist-item');
+    const main = el('div', 'hist-main');
+    const emojis = it.agent_keys.map(k => (agents[k] ? agents[k].emoji : '')).join('');
+    main.innerHTML = `<div class="hist-title">${it.title}</div><div class="hist-sub">${(it.updated_at||'').replace('T',' ')} · ${it.count} messages · ${it.agent_keys.length} people</div>`;
+    main.addEventListener('click', () => {
+      closeOverlay('histOverlay');
+      currentInit = { meeting_id: it.id };
+      if (ws && ws.readyState === 1) ws.send(JSON.stringify(Object.assign({ type: 'init' }, currentInit)));
+    });
+    const del = el('button', 'hist-del', '🗑');
+    del.title = 'Delete this meeting';
+    del.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      if (!confirm('Delete meeting "' + it.title + '"?')) return;
+      await fetch('/meetings/' + it.id, { method: 'DELETE' });
+      row.remove();
+    });
+    row.appendChild(main); row.appendChild(del);
+    box.appendChild(row);
+  });
+  openOverlay('histOverlay');
+});
+
+// Export to Word
+document.getElementById('btnExport').addEventListener('click', () => {
+  if (!currentMeetingId) { alert('No meeting yet.'); return; }
+  window.open('/meetings/' + currentMeetingId + '/export', '_blank');
+});
+
+// 🔄 Auto-relay — toggle whether agents @mention each other and continue automatically
+document.getElementById('btnRelay').addEventListener('click', () => {
+  autoRelay = !autoRelay;
+  const b = document.getElementById('btnRelay');
+  b.classList.toggle('on', autoRelay);
+  b.textContent = '🔄 Auto-relay: ' + (autoRelay ? 'ON' : 'OFF');
+  addSysLine(autoRelay
+    ? '🔄 Auto-relay ON — agents can @mention each other and continue automatically (up to a few hops per message). You can interrupt anytime.'
+    : '🔄 Auto-relay OFF — only the Host starts turns (as before).');
+});
+
+// 💾 Save memory — each enabled agent distills the meeting into its own memory
+document.getElementById('btnSaveMem').addEventListener('click', () => {
+  if (!currentMeetingId) { alert('No meeting yet.'); return; }
+  if (!ws || ws.readyState !== 1) { addSysLine('⏳ Reconnecting… try again in a moment.'); return; }
+  ws.send(JSON.stringify({ type: 'save_memory', enabled: Array.from(enabledKeys) }));
+});
+
+// 🧠 Memory — view/delete each agent's own memory
+document.getElementById('btnMemory').addEventListener('click', async () => {
+  const qp = '?project=' + encodeURIComponent(currentProjectId || '');
+  const mem = await (await fetch('/memory' + qp)).json();
+  let list = Object.values(agents);
+  if (!list.length) list = await (await fetch('/agents')).json();
+  const box = document.getElementById('memList'); box.innerHTML = '';
+
+  // the team's SHARED memory card (on top)
+  const tCard = el('div', 'mem-card'); tCard.style.borderColor = 'var(--host)';
+  const tHead = el('div', 'mem-head');
+  const tTitle = el('span'); tTitle.innerHTML = '🏛️ <b>Team shared memory</b>';
+  const tBody = el('pre', 'mem-body'); tBody.textContent = (mem['_team'] || '').trim() || '(nothing yet)';
+  const tDel = el('button', 'hist-del', '🗑'); tDel.title = 'Delete the team shared memory';
+  tDel.addEventListener('click', async () => {
+    if (!confirm('Delete ALL of the team shared memory?')) return;
+    await fetch('/memory/_team' + qp, { method: 'DELETE' });
+    tBody.textContent = '(nothing yet)';
+  });
+  tHead.appendChild(tTitle); tHead.appendChild(tDel);
+  tCard.appendChild(tHead); tCard.appendChild(tBody);
+  box.appendChild(tCard);
+
+  list.forEach(a => {
+    const card = el('div', 'mem-card');
+    const head = el('div', 'mem-head');
+    const title = el('span'); title.innerHTML = `${a.emoji} <b>${a.name}</b> · ${a.role}`;
+    const body = el('pre', 'mem-body');
+    body.textContent = (mem[a.key] || '').trim() || '(nothing yet)';
+    const del = el('button', 'hist-del', '🗑');
+    del.title = 'Delete ' + a.name + "'s memory";
+    del.addEventListener('click', async () => {
+      if (!confirm('Delete ALL of ' + a.name + "'s memory?")) return;
+      await fetch('/memory/' + a.key + qp, { method: 'DELETE' });
+      body.textContent = '(nothing yet)';
+    });
+    head.appendChild(title); head.appendChild(del);
+    card.appendChild(head); card.appendChild(body);
+    box.appendChild(card);
+  });
+  openOverlay('memOverlay');
+});
+
+// ---------- attaching documents ----------
+async function uploadFiles(files) {
+  if (!currentMeetingId) { addSysLine('⚠️ No meeting to attach a document to.'); return; }
+  let ok = 0;
+  for (const file of files) {
+    addSysLine(`⏳ Uploading "${file.name}"…`);
+    const fd = new FormData(); fd.append('file', file);
+    try {
+      const res = await fetch('/meetings/' + currentMeetingId + '/upload', { method: 'POST', body: fd });
+      let data = {};
+      try { data = await res.json(); } catch (e) {}
+      if (!res.ok || !data.ok) { addSysLine(`❌ Could not upload "${file.name}": ${data.error || ('HTTP ' + res.status)}`); continue; }
+      addHostUpload(data.upload); ok++;
+    } catch (err) {
+      addSysLine(`❌ Error uploading "${file.name}": ${err}`);
+    }
+  }
+  if (ok) addSysLine('✅ Document(s) added to the meeting. The team will read them on your next message.');
+}
+
+document.getElementById('attachBtn').addEventListener('click', () => {
+  if (!currentMeetingId) { addSysLine('⚠️ No meeting yet.'); return; }
+  document.getElementById('fileInput').click();
+});
+document.getElementById('fileInput').addEventListener('change', (e) => {
+  if (e.target.files && e.target.files.length) uploadFiles(Array.from(e.target.files));
+  e.target.value = '';
+});
+
+// drag-and-drop a file onto the page
+const dropHint = document.getElementById('dropHint');
+let dragDepth = 0;
+window.addEventListener('dragenter', (e) => {
+  if (e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files')) { dragDepth++; dropHint.classList.add('show'); }
+});
+window.addEventListener('dragover', (e) => { e.preventDefault(); });
+window.addEventListener('dragleave', () => { dragDepth--; if (dragDepth <= 0) { dragDepth = 0; dropHint.classList.remove('show'); } });
+window.addEventListener('drop', (e) => {
+  e.preventDefault(); dragDepth = 0; dropHint.classList.remove('show');
+  if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) uploadFiles(Array.from(e.dataTransfer.files));
+});
+
+// composer
+input.addEventListener('input', () => { input.style.height = 'auto'; input.style.height = Math.min(input.scrollHeight, 140) + 'px'; });
+input.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } });
+sendBtn.addEventListener('click', send);
+
+// ====================== PROJECTS ======================
+function updateProjectHeader() {
+  const p = projects.find(x => x.id === currentProjectId);
+  const btn = document.getElementById('btnProject');
+  btn.textContent = '📁 ' + (p ? p.name : 'Projects');
+}
+
+async function loadProjects() {
+  projects = await (await fetch('/projects')).json();
+  if (!projects.length) {                       // safety: create a project if empty
+    await fetch('/projects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'General project' }) });
+    projects = await (await fetch('/projects')).json();
+  }
+  const saved = localStorage.getItem('projectId');
+  if (saved && projects.some(p => p.id === saved)) currentProjectId = saved;
+  else currentProjectId = projects[0].id;
+  updateProjectHeader();
+}
+
+// Switch project: open its most recent meeting, or create a new room if none exists
+async function switchProject(pid) {
+  currentProjectId = pid;
+  localStorage.setItem('projectId', pid);
+  updateProjectHeader();
+  closeOverlay('projectOverlay');
+  const ms = await (await fetch('/meetings?project=' + encodeURIComponent(pid))).json();
+  currentInit = ms.length ? { meeting_id: ms[0].id } : { project_id: pid };
+  if (ws && ws.readyState === 1) ws.send(JSON.stringify(Object.assign({ type: 'init' }, currentInit)));
+}
+
+async function renderProjectList() {
+  projects = await (await fetch('/projects')).json();
+  updateProjectHeader();
+  const box = document.getElementById('projectList'); box.innerHTML = '';
+  projects.forEach(p => {
+    const row = el('div', 'hist-item');
+    const main = el('div', 'hist-main');
+    const active = p.id === currentProjectId ? ' ✓' : '';
+    main.innerHTML = `<div class="hist-title">${p.name}${active}</div><div class="hist-sub">${p.count} meetings</div>`;
+    main.addEventListener('click', () => switchProject(p.id));
+    const del = el('button', 'hist-del', '🗑');
+    del.title = 'Delete project (also deletes its meetings + memory)';
+    del.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      if (projects.length <= 1) { alert('At least 1 project must remain.'); return; }
+      if (!confirm('Delete project "' + p.name + '"?\nAll meetings + memory of this project will be lost.')) return;
+      await fetch('/projects/' + p.id, { method: 'DELETE' });
+      if (p.id === currentProjectId) { const other = projects.find(x => x.id !== p.id); await switchProject(other.id); }
+      renderProjectList();
+    });
+    row.appendChild(main); row.appendChild(del);
+    box.appendChild(row);
+  });
+}
+
+document.getElementById('btnProject').addEventListener('click', () => { renderProjectList(); openOverlay('projectOverlay'); });
+document.getElementById('createProject').addEventListener('click', async () => {
+  const name = document.getElementById('newProjectName').value.trim();
+  const res = await fetch('/projects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
+  const p = await res.json();
+  document.getElementById('newProjectName').value = '';
+  await switchProject(p.id);
+});
+
+// ====================== MANAGE TEAM (sub-agents) ======================
+let editingKey = null;   // null = ADDING a new one; otherwise = EDITING this key
+
+async function renderTeamList() {
+  const list = await (await fetch('/roster')).json();
+  const box = document.getElementById('teamList'); box.innerHTML = '';
+  list.forEach(a => {
+    const row = el('div', 'hist-item');
+    const main = el('div', 'hist-main');
+    main.innerHTML = `<div class="hist-title"><span class="dot" style="background:${a.color}"></span> ${a.emoji} ${a.name} <span style="color:var(--muted)">· ${a.role}</span></div><div class="hist-sub">key: ${a.key} · brain: ${a.model}</div>`;
+    main.addEventListener('click', () => openAgentForm(a));
+    const clone = el('button', 'hist-del', '⧉'); clone.title = 'Duplicate';
+    clone.addEventListener('click', (e) => { e.stopPropagation(); openAgentForm(Object.assign({}, a, { key: '', name: a.name + ' (copy)' }), true); });
+    const del = el('button', 'hist-del', '🗑'); del.title = 'Delete agent';
+    del.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      if (list.length <= 1) { alert('At least 1 agent must remain.'); return; }
+      if (!confirm('Delete agent ' + a.name + '?')) return;
+      const r = await fetch('/roster/' + a.key, { method: 'DELETE' });
+      if (!r.ok) { const d = await r.json().catch(() => ({})); alert(d.error || 'Could not delete.'); return; }
+      renderTeamList();
+    });
+    row.appendChild(main); row.appendChild(clone); row.appendChild(del);
+    box.appendChild(row);
+  });
+}
+
+function openAgentForm(a, isClone) {
+  editingKey = (a && a.key && !isClone) ? a.key : null;
+  document.getElementById('agentFormTitle').textContent = editingKey ? ('Edit: ' + a.name) : 'Add agent';
+  const keyInput = document.getElementById('agKey');
+  keyInput.value = a ? (a.key || '') : '';
+  keyInput.disabled = !!editingKey;               // key is IMMUTABLE when editing
+  document.getElementById('agName').value = a ? (a.name || '') : '';
+  document.getElementById('agEmoji').value = a ? (a.emoji || '🤖') : '🤖';
+  document.getElementById('agColor').value = (a && /^#[0-9a-fA-F]{6}$/.test(a.color || '')) ? a.color : '#3D9970';
+  document.getElementById('agRole').value = a ? (a.role || '') : '';
+  document.getElementById('agModel').value = (a && a.model) ? a.model : 'opus';
+  document.getElementById('agPersona').value = a ? (a.persona || '') : '';
+  const caps = (a && a.caps) ? a.caps : { tools: true, mcp: true, skills: false, full: false };
+  document.getElementById('capTools').checked = !!caps.tools;
+  document.getElementById('capMcp').checked = !!caps.mcp;
+  document.getElementById('capSkills').checked = !!caps.skills;
+  document.getElementById('capFull').checked = !!caps.full;
+  syncCaps();
+  openOverlay('agentOverlay');
+}
+
+// Capabilities dependency: turning off "Use tools" greys out the sub-options;
+// ticking "Full control" shows a warning.
+function syncCaps() {
+  const on = document.getElementById('capTools').checked;
+  ['capMcp', 'capSkills', 'capFull'].forEach(id => {
+    const el = document.getElementById(id);
+    el.disabled = !on;
+    el.parentElement.style.opacity = on ? '1' : '.45';
+  });
+  document.getElementById('capFullWarn').style.display =
+    (on && document.getElementById('capFull').checked) ? 'block' : 'none';
+}
+document.getElementById('capTools').addEventListener('change', syncCaps);
+document.getElementById('capFull').addEventListener('change', syncCaps);
+
+document.getElementById('btnTeam').addEventListener('click', () => { renderTeamList(); openOverlay('teamOverlay'); });
+document.getElementById('addAgentBtn').addEventListener('click', () => openAgentForm(null));
+
+document.getElementById('saveAgentBtn').addEventListener('click', async () => {
+  const key = document.getElementById('agKey').value.trim().toLowerCase();
+  const payload = {
+    key,
+    name: document.getElementById('agName').value.trim(),
+    role: document.getElementById('agRole').value.trim(),
+    emoji: document.getElementById('agEmoji').value.trim() || '🤖',
+    color: document.getElementById('agColor').value.trim(),
+    model: document.getElementById('agModel').value,
+    persona: document.getElementById('agPersona').value,
+    caps: {
+      tools: document.getElementById('capTools').checked,
+      mcp: document.getElementById('capMcp').checked,
+      skills: document.getElementById('capSkills').checked,
+      full: document.getElementById('capFull').checked,
+    },
+  };
+  if (!payload.name) { alert('Enter a display name.'); return; }
+  let r;
+  if (editingKey) {
+    r = await fetch('/roster/' + editingKey, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+  } else {
+    if (!/^[a-z0-9][a-z0-9_-]{0,30}$/.test(key)) { alert('Invalid key: only lowercase letters/numbers/_/-, starting with a letter or number.'); return; }
+    r = await fetch('/roster', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+  }
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok || !d.ok) { alert(d.error || 'Save failed.'); return; }
+  closeOverlay('agentOverlay');
+  renderTeamList();
+});
+
+// ====================== STARTUP ======================
+async function boot() {
+  try { await loadProjects(); } catch (e) { /* still works if this fails */ }
+  currentInit = { project_id: currentProjectId };
+  connect();
+  input.focus();
+}
+boot();
+</script>
+</body>
+</html>

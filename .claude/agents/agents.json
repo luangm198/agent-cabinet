@@ -1,0 +1,66 @@
+[
+  {
+    "key": "linh",
+    "name": "Linh",
+    "role": "CEO / Founder",
+    "emoji": "👑",
+    "color": "#e07a5f",
+    "model": "opus",
+    "caps": {
+      "tools": true,
+      "mcp": true,
+      "skills": true,
+      "full": false
+    }
+  },
+  {
+    "key": "khoa",
+    "name": "Khoa",
+    "role": "CTO / Engineering",
+    "emoji": "🛠️",
+    "color": "#3d9970",
+    "model": "opus",
+    "caps": {
+      "tools": false,
+      "mcp": false,
+      "skills": false,
+      "full": false
+    }
+  },
+  {
+    "key": "mai",
+    "name": "Mai",
+    "role": "Product Manager",
+    "emoji": "📋",
+    "color": "#0074D9",
+    "model": "opus"
+  },
+  {
+    "key": "tung",
+    "name": "Tung",
+    "role": "Designer (UX/UI)",
+    "emoji": "🎨",
+    "color": "#b10dc9",
+    "model": "opus",
+    "caps": {
+      "tools": true,
+      "mcp": true,
+      "skills": true,
+      "full": true
+    }
+  },
+  {
+    "key": "ha",
+    "name": "Ha",
+    "role": "Marketing / Growth",
+    "emoji": "📈",
+    "color": "#ff851b",
+    "model": "sonnet",
+    "caps": {
+      "tools": true,
+      "mcp": true,
+      "skills": true,
+      "full": false
+    }
+  }
+]
