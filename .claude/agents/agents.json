@@ -64,17 +64,17 @@
     }
   },
   {
-    "model": "sonnet",
     "key": "quang",
-    "name": "quangyeet",
-    "role": "funy fifa",
-    "emoji": "🤖",
+    "name": "Quang",
+    "role": "General Counsel / Legal",
+    "emoji": "⚖️",
     "color": "#6b3d99",
+    "model": "opus",
     "caps": {
       "tools": true,
       "mcp": true,
-      "skills": true,
-      "full": true
+      "skills": false,
+      "full": false
     }
   }
 ]
