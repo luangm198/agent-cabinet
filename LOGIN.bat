@@ -15,7 +15,9 @@ echo.
 echo ------------------------------------------------------------
 echo.
 set "CLAUDE_EXE="
-for /f "delims=" %%i in ('dir /b /s "%LOCALAPPDATA%\Packages\Claude_*\LocalCache\Roaming\Claude\claude-code\*\claude.exe" 2^>nul') do set "CLAUDE_EXE=%%i"
+if defined CLAUDE_CLI if exist "%CLAUDE_CLI%" set "CLAUDE_EXE=%CLAUDE_CLI%"
+if not defined CLAUDE_EXE for /f "delims=" %%i in ('dir /b /s "%LOCALAPPDATA%\Packages\Claude_*\LocalCache\Roaming\Claude\claude-code\*\claude.exe" 2^>nul') do set "CLAUDE_EXE=%%i"
+if not defined CLAUDE_EXE for /f "delims=" %%i in ('dir /b /s "%APPDATA%\Claude\claude-code\*\claude.exe" 2^>nul') do set "CLAUDE_EXE=%%i"
 if defined CLAUDE_EXE (
   "%CLAUDE_EXE%" auth login
 ) else (

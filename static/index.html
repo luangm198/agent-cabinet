@@ -74,6 +74,9 @@
     white-space: pre-wrap; word-wrap: break-word; font-size: 14.5px;
   }
   .msg.host .bubble { background: var(--host); border-color: var(--host); color: #fff; }
+  /* while an agent is only "thinking" its bubble has no text yet — hide the empty box
+     so just the in-chat status line shows (see .ar-inchat). */
+  .bubble:empty { display: none; }
   .role { font-size: 11px; opacity: .8; }
   .typing { display: inline-flex; gap: 4px; padding: 4px 2px; }
   .typing span { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); animation: blink 1.2s infinite both; }
@@ -89,6 +92,9 @@
   .img-attach img { max-width: 100%; max-height: 360px; border-radius: 10px; display: block; cursor: zoom-in; border: 1px solid var(--border); }
   .img-cap { font-size: 12px; color: var(--muted); margin-top: 4px; }
   .sys { text-align: center; color: var(--muted); font-size: 12.5px; }
+  /* date divider inserted whenever the next message falls on a different calendar day */
+  .day-sep { display: flex; align-items: center; gap: 12px; margin: 14px auto 6px; max-width: 860px; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .day-sep::before, .day-sep::after { content: ""; flex: 1; height: 1px; background: var(--border); }
 
   /* documents attached by the Host */
   .upload-card { display: flex; align-items: center; gap: 10px; background: var(--panel2); border: 1px solid var(--border); border-radius: 12px; padding: 9px 12px; text-decoration: none; color: var(--text); max-width: 320px; }
@@ -125,6 +131,9 @@
   .ar-row.done .ar-dot { background: #3fb950; animation: none; }
   .ar-row.done .ar-act { color: #3fb950; font-style: normal; }
   .ar-row.done { transition: opacity .5s; }
+  /* status line living INSIDE an agent's chat block (under its bubble) */
+  .ar-row.ar-inchat { margin-top: 5px; }
+  #activeBar.show { padding-bottom: 4px; }
   #stopAll { align-self: flex-end; background: transparent; border: 1px solid #ff6b6b; color: #ff6b6b; border-radius: 8px; padding: 4px 12px; cursor: pointer; font-size: 12px; font-weight: 600; }
   #stopAll:hover { background: rgba(255,107,107,.12); }
 
@@ -383,10 +392,27 @@ function whoHtml(label, iso) {
   const t = fmtClock(iso);
   return label + (t ? ` <span class="ts">${t}</span>` : '');
 }
+// Local calendar day as "YYYY-MM-DD" (matches fmtClock, which also uses local time).
+function dayKey(iso) {
+  const d = iso ? new Date(iso) : new Date();
+  if (isNaN(d.getTime())) return '';
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0')
+       + '-' + String(d.getDate()).padStart(2, '0');
+}
+// Tracks the day of the last rendered message; reset to null on a fresh render (renderMeeting).
+let lastMsgDay = null;
+// Insert a date divider when this message starts a new calendar day (also before the very first).
+function ensureDaySeparator(iso) {
+  const day = dayKey(iso);
+  if (!day || day === lastMsgDay) return;
+  lastMsgDay = day;
+  chat.appendChild(el('div', 'day-sep', `<span>${day}</span>`));
+}
 function addSysLine(text) { chat.appendChild(el('div', 'sys', text)); scroll(); }
 
 // ---------- render messages ----------
 function addHostMessage(text, ts) {
+  ensureDaySeparator(ts);
   const wrap = el('div', 'msg host');
   wrap.appendChild(el('div', 'avatar', '🧑'));
   const body = el('div', 'body');
@@ -408,6 +434,7 @@ function fileIcon(name) {
 }
 // Host message with an attached document/image brought into the meeting
 function addHostUpload(upload, ts) {
+  ensureDaySeparator(ts);
   const wrap = el('div', 'msg host');
   wrap.appendChild(el('div', 'avatar', '🧑'));
   const body = el('div', 'body');
@@ -436,6 +463,7 @@ function addHostUpload(upload, ts) {
   scroll();
 }
 function agentBubble(a, ts) {
+  ensureDaySeparator(ts);
   const wrap = el('div', 'msg');
   const av = el('div', 'avatar', a ? a.emoji : '🤖');
   if (a) av.style.borderColor = a.color;
@@ -486,27 +514,29 @@ function renderStopAll() {
       btn.addEventListener('click', () => sendStop(null));
       activeBar.appendChild(btn);
     }
-  } else if (btn) { btn.remove(); }
+    activeBar.classList.add('show');     // bottom bar now ONLY hosts the "Stop all" button
+  } else {
+    if (btn) btn.remove();
+    activeBar.classList.remove('show');
+  }
 }
 function activeAdd(key, label) {
-  const a = agents[key] || {};
   const prev = active[key];
   if (prev) { clearInterval(prev.timer); prev.row.remove(); }   // restart fresh
-  const row = el('div', 'ar-row');
+  // The status line lives INSIDE this agent's chat block (right under its bubble),
+  // so we don't repeat the avatar/name — the bubble header already shows who it is.
+  const row = el('div', 'ar-row ar-inchat');
   row.appendChild(el('span', 'ar-dot'));
-  row.appendChild(el('span', 'ar-emoji', a.emoji || '🤖'));
-  row.appendChild(el('span', 'ar-name', a.name || key));
   const actEl = el('span', 'ar-act'); actEl.textContent = label || 'thinking…';
   const timeEl = el('span', 'ar-time', '00:00');
   const stop = el('button', 'ar-stop', '⏹ Stop');
   stop.addEventListener('click', () => sendStop(key));
   row.appendChild(actEl); row.appendChild(timeEl); row.appendChild(stop);
-  const btn = document.getElementById('stopAll');
-  if (btn) activeBar.insertBefore(row, btn); else activeBar.appendChild(row);
+  const host = bubbles[key] ? bubbles[key].parentElement : null;   // the agent's message body
+  if (host) host.appendChild(row); else activeBar.appendChild(row);
   const start = Date.now();
   const timer = setInterval(() => { timeEl.textContent = fmtElapsed(Date.now() - start); }, 1000);
   active[key] = { row, actEl, timeEl, start, timer, done: false };
-  activeBar.classList.add('show');
   renderStopAll();
 }
 function activeSet(key, label) {
@@ -528,7 +558,7 @@ function activeDone(key) {
     setTimeout(() => {
       e.row.remove();
       if (active[key] === e) delete active[key];
-      if (!activeBar.querySelector('.ar-row')) { activeBar.classList.remove('show'); renderStopAll(); }
+      renderStopAll();
     }, 500);
   }, 3000);
 }
@@ -543,9 +573,8 @@ function startAgentMessage(key, task) {
   const bubble = agentBubble(agents[key]);
   bubble._textNode = null; bubble._hasText = false;
   bubble._task = task || ''; bubble._tool = null;
-  bubble._work = el('div', 'working');
-  bubble.appendChild(bubble._work);
-  renderWorking(bubble);
+  // The live status (thinking… / tool / writing… + timer + Stop) is rendered by activeAdd()
+  // as a line under THIS bubble — see activeAdd(). No separate in-bubble caption needed.
   bubbles[key] = bubble;
   scroll();
 }
@@ -616,7 +645,7 @@ function renderMeeting(m) {
   mtgTitle.textContent = '— ' + m.title;
   agents = {}; enabledKeys.clear(); roster.innerHTML = '';
   m.agents.forEach(a => { agents[a.key] = a; enabledKeys.add(a.key); addChip(a); });
-  chat.innerHTML = ''; bubbles = {}; activeClearAll();
+  chat.innerHTML = ''; bubbles = {}; activeClearAll(); lastMsgDay = null;
   if (!m.log || m.log.length === 0) {
     addSysLine('New meeting room. Type a topic to begin. Click a name above to enable/disable someone.');
   } else {

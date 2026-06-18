@@ -62,5 +62,19 @@
       "skills": true,
       "full": false
     }
+  },
+  {
+    "model": "sonnet",
+    "key": "quang",
+    "name": "quangyeet",
+    "role": "funy fifa",
+    "emoji": "🤖",
+    "color": "#6b3d99",
+    "caps": {
+      "tools": true,
+      "mcp": true,
+      "skills": true,
+      "full": true
+    }
   }
 ]

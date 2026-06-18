@@ -359,10 +359,21 @@ class Meeting:
         self.log = log or []  # [{"speaker": str, "text": str}, ...]
         # key -> the live claude.exe subprocess for that agent (so the Host can STOP it).
         self.active_procs = {}
+        # key -> True when the Host pressed STOP (the read loop bails out instead of waiting
+        # for an EOF that — on Windows/ProactorEventLoop — never comes after taskkill).
+        self.stop_flags = {}
+        # key -> the in-flight stdout read task, so STOP can cancel a hung read directly.
+        self.read_tasks = {}
 
     def stop_agent(self, key: str) -> bool:
         """Kill the running claude.exe of one agent. Returns True if one was running."""
-        proc = self.active_procs.get(key)
+        # Raise the flag + cancel the pending read FIRST, so _attempt's read loop unblocks
+        # even though a taskkill'd process never signals EOF on its stdout pipe (Windows quirk).
+        self.stop_flags[key] = True
+        rt = self.read_tasks.get(key)
+        if rt is not None and not rt.done():
+            rt.cancel()
+        proc = self.active_procs.pop(key, None)
         if proc is None:
             return False
         _kill_proc_tree(proc)
@@ -372,7 +383,7 @@ class Meeting:
         """Kill every running agent. Returns the list of keys that were running."""
         running = list(self.active_procs.keys())
         for k in running:
-            _kill_proc_tree(self.active_procs.get(k))
+            self.stop_agent(k)
         return running
 
     @classmethod
@@ -516,6 +527,7 @@ class Meeting:
         )
         # register so the Host can STOP this agent mid-run (see Meeting.stop_agent)
         self.active_procs[agent.key] = proc
+        self.stop_flags[agent.key] = False     # fresh turn -> not stopped yet
 
         # send the prompt via stdin (avoids command-line length limits for long meetings)
         proc.stdin.write(prompt.encode("utf-8"))
@@ -530,7 +542,16 @@ class Meeting:
         # Read by CHUNK then split lines manually — tolerates arbitrarily long JSON lines
         # (e.g. when the agent reads a large file/image). Don't use readline (64KB limit -> crash).
         while True:
-            chunk = await proc.stdout.read(65536)
+            if self.stop_flags.get(agent.key):     # Host pressed STOP between chunks
+                break
+            # Read in a cancellable task: STOP cancels it directly, so a taskkill'd process
+            # (whose stdout never EOFs on Windows) can't wedge this loop forever.
+            read_task = asyncio.ensure_future(proc.stdout.read(65536))
+            self.read_tasks[agent.key] = read_task
+            try:
+                chunk = await read_task
+            except asyncio.CancelledError:
+                break                              # STOP cancelled the read
             if not chunk:
                 break
             buf += chunk
@@ -599,8 +620,19 @@ class Meeting:
             full += pending
             yield ("text", pending)
 
-        await proc.wait()
+        # Reap the process. After a STOP the proc is already killed; don't let a hung
+        # proc.wait() (same Windows quirk) block forever — cap it.
+        try:
+            await asyncio.wait_for(proc.wait(), timeout=2)
+        except Exception:
+            pass
+        # Close the pipes so an abandoned (cancelled) read transport doesn't leak / warn.
+        try:
+            proc._transport.close()
+        except Exception:
+            pass
         self.active_procs.pop(agent.key, None)   # no longer stoppable once finished
+        self.read_tasks.pop(agent.key, None)
 
         # Report back to stream_agent: streamed content + error (if any) to decide on retry.
         yield ("__done__", {"text": full, "error": error_text})
