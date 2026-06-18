@@ -1,39 +1,39 @@
 # 🗣️ Meeting with the A.I Team
 
-A web app that simulates a meeting between **you (the human / host)** and **5 A.I sub-agents**,
-following the model: one chairperson ↔ many specialist agents.
+A web app that drops you into a live meeting with **your own team of A.I agents** — a CEO, a CTO, a lawyer, anyone you want. You chair the room; they reply in character, in real time, and can even debate each other.
 
-> **Prerequisite:** Requires an active **Claude Code Max** subscription (5x or 20x). The app uses your Claude Code login (`claude.exe`) — there is **NO API key** and no separate cost.
+> **Prerequisite:** an active **Claude Pro or Max** subscription. The app reuses your existing Claude login (`claude.exe`) — there is **NO API key** and **no extra cost**.
 
-## Features
-
-- **Runs on your Claude account (Max plan) — NO API key required, no extra charges.**
-  The app "borrows" the Claude Code login (`claude auth login`) that is already saved.
-- **5 sub-agents following the Claude Code/Anthropic standard.** Defined in `.claude/agents/*.md`
-  with YAML frontmatter (`name`, `description`, `model`, `color`) + a body that serves as the system prompt.
-- **Each agent is its own Opus brain** (`model: opus` in the frontmatter), with an independent context.
-- **Independent context.** On each turn, an agent receives the entire flow of the meeting as its own context
-  and speaks in character — processing independently from its own perspective.
-- **Real-time streaming** over WebSocket: the text appears gradually, as if being spoken.
-
-## Sub-agent structure (Anthropic standard)
-
-Each agent is a single file at `.claude/agents/<key>.md`:
-
-```markdown
----
-name: linh-ceo
-description: Linh — CEO/Founder...
-model: opus
-color: orange
 ---
 
-You are Linh, the founder...   <- the body = the agent's system prompt
+## ✨ Why it's different
+
+- **Build an UNLIMITED team.** Add as many sub-agents as you want from the **👥 Team** panel — name, role, emoji, color, brain, and personality. The default team is just a starting point.
+- **Each agent is its own brain.** Pick the model per agent (`opus` / `sonnet` / `haiku`), each with an independent context, speaking in character from its own perspective.
+- **Real tools, not just talk.** Agents can **search the web, read files, use MCP servers** (Notion, Gmail, Drive, Calendar…), run **Claude Code skills**, and — if you allow it — **control your computer**.
+- **They work in parallel.** Every agent runs on its own "laptop" — different agents answer concurrently while you keep typing.
+- **They debate each other.** Turn on **🔄 Auto-relay** and agents @mention one another and discuss among themselves, with safety caps so it never loops or burns your quota.
+- **Persistent memory.** Per-agent private memory + a shared team memory, isolated per project.
+- **No API key. No extra charge.** It "borrows" your saved Claude login (Pro or Max).
+
+---
+
+## 🚀 Quick start
+
+```bash
+pip install -r requirements.txt   # first time only
+python -m uvicorn server:app --port 8000
+# then open http://localhost:8000
 ```
 
-The app reads these files: it splits off the frontmatter to get `model`, and uses the body as the "personality brain".
+**Even easier (Windows):** double-click **`RUN-APP.bat`** → the browser opens automatically.
 
-## Default team (edit in `config.py`)
+> Log in once via **`LOGIN.bat`** (it runs `claude auth login` with your Pro/Max account).
+> Whenever you see *"Not logged in"*, just run `LOGIN.bat` again. Check status with `claude auth status`.
+
+---
+
+## 👥 Default team (fully editable in the UI)
 
 | Agent | Role |
 |-------|------|
@@ -42,72 +42,94 @@ The app reads these files: it splits off the frontmatter to get `model`, and use
 | 📋 Mai | Product Manager |
 | 🎨 Tung | Designer (UX/UI) |
 | 📈 Ha | Marketing / Growth |
+| ⚖️ Quang | General Counsel / Legal |
 
-## Running the app
+This is only a **seed**. Use the **👥 Team** button to add / edit / duplicate / delete agents — there's **no hard limit** on team size.
 
-**Easiest way:** double-click **`RUN-APP.bat`** → the browser opens automatically.
+---
 
-**Or via the command line:**
-```bash
-pip install -r requirements.txt   # only needed the first time
-python -m uvicorn server:app --port 8000
-# then open http://localhost:8000
-```
+## 🧠 How to use
 
-> You only log in once (the `LOGIN.bat` file). After that, it keeps working.
-> Whenever you hit "Not logged in", just run `LOGIN.bat` again.
-
-## How to use
-
-- Type a topic / question → **the whole team speaks in turn**.
-- To call just one person: type `@khoa`, `@mai`, `@linh`, `@tung`, `@ha`
-  (e.g. *"@khoa how long will this take to build?"*).
-- Each page reload = a brand-new meeting room, with a clean context.
+- Type a topic → **the whole team weighs in** (each enabled agent answers).
+- Call just one person with `@key` / `@name`, e.g. *"@khoa how long to build this?"* or *"@quang are we allowed to scrape this data?"*.
+- Toggle a name in the roster to **enable/disable** an agent (a disabled agent never speaks, even if @mentioned).
+- **Stop** any single agent mid-answer, or **Stop all** at once.
+- Each page reload = a brand-new meeting room with a clean context.
 
 ### 🔄 Auto-relay between agents
-- Click the **🔄 Auto-relay** button on the toolbar to turn it ON/OFF (default: OFF).
-- When ON: if an agent finishes speaking and **@mentions** another (enabled) agent, that agent **automatically speaks next** — like a team discussing among themselves while you just sit back and watch.
-- Safe: a maximum of **4 relays per message you send**, and each agent speaks at most **2 times** (adjust `AUTO_RELAY_MAX_*` in `config.py`) → it never runs forever and never burns through your quota. Typing a single line interrupts it immediately.
+Turn it ON (toolbar) and agents that @mention another enabled agent **hand the turn over automatically** — like a team discussing while you watch. Capped at **4 relays per message** and **2 turns per agent** (`AUTO_RELAY_MAX_*` in `config.py`) so it can't run forever. Type anything to interrupt instantly.
 
-### 🧠 Memory (per-agent + shared team memory)
-- **Private memory** (`memory/<key>.md`): each agent's own perspective. **Shared memory** (`memory/_team.md`): facts the whole team knows — loaded into EVERY agent → so everyone stays consistent.
-- **Remembering:** *"@khoa remember: ..."* → goes into Khoa's private memory; *"team remember: ..."* → goes into shared memory. Or, at the end of a meeting, click **💾 Save memory** → each agent distills its own private notes + one secretary distills the shared notes.
-- **View/delete:** click **🧠 Memory** → view/delete both the shared memory and each individual's memory.
-- Auto-anti-bloat: when it exceeds `MEMORY_MAX_FACTS` (default 40) → the agent automatically **cleans up** (merging duplicates, dropping outdated/conflicting items). Each turn loads at most `MEMORY_INJECT_MAX_CHARS` to save tokens (adjust in `config.py`).
+### 📎 Attach documents
+Click **📎** or drag-and-drop a file onto the page. Supports **PDF, Word (.docx), Excel (.xlsx), TXT, CSV, MD, JSON** and **images (PNG/JPG/…)**. The content is dropped into the transcript so the whole team can read it next turn.
 
-### 📎 Attach documents to the meeting
-- Click the **📎** button next to the input box, or **drag and drop a file** onto the page.
-- Supported: **PDF, Word (.docx), Excel (.xlsx), TXT, CSV, MD, JSON** (the server extracts the content)
-  and **PNG/JPG/… images** (agents use the Read tool to "view" them directly).
-- The document content is inserted into the transcript → **the whole team can read it in the next message**.
-- Files are stored at `meetings/uploads/<id>/`; up to 25MB per file. Long documents are automatically truncated
-  (agents can still open the full version on disk via the tool if needed).
+### 🧠 Memory (per-agent + shared)
+- **Private** memory per agent + a **shared team** memory loaded into everyone (so the team stays consistent).
+- Say *"@khoa remember: …"* (private) or *"team remember: …"* (shared), or click **💾 Save memory** at the end of a meeting to distill notes automatically.
+- View/delete anytime via the **🧠 Memory** modal. Auto-consolidates when it grows too large.
 
-## Customization
+### 📁 Projects & 📄 Export
+- **Projects** keep workspaces isolated — each project has its own meetings, memory, and documents (📁 Project button).
+- **Export any meeting to Word (.docx)** with one click.
 
-- **Change one agent's personality:** edit the body of `.claude/agents/<key>.md`. Reload the page and you're done.
-- **Change each agent's individual brain:** edit `model:` in that file's frontmatter (`opus`/`sonnet`/`haiku`).
-- **Add a new agent:** create `.claude/agents/<key>.md` (with correct frontmatter) + add one line to `AGENTS` in `config.py` (the key must match the file name).
-- **Change the overall thinking depth:** `EFFORT` in `config.py` (`low`/`medium`/`high`/`xhigh`/`max`).
+---
 
-## Agent tools (web search / read files / MCP)
+## 🔧 Sub-agent structure (Claude Code / Anthropic standard)
 
-All 5 agents are granted tools so they can **verify things for real** instead of speaking from memory. Adjust in `config.py`:
+Each agent is a single file at `.claude/agents/<key>.md` (the **👥 Team** UI writes these for you):
 
-| Setting | Meaning |
+```markdown
+---
+name: quang
+description: Quang — General Counsel / Legal
+model: opus
+color: #6b3d99
+---
+
+You are Quang, the General Counsel…   ← the body = the agent's system prompt
+```
+
+`.claude/agents/agents.json` holds the ordered roster + per-agent metadata and capabilities. Changes take effect in a **new meeting** (reload the page).
+
+---
+
+## 🛡️ Agent capabilities & safety
+
+Each agent's powers are configurable (global defaults in `config.py`, override per agent in the UI):
+
+| Capability | Meaning |
 |---|---|
-| `ENABLE_TOOLS = True` | Turn all agent tools on/off |
-| `FULL_CONTROL` | **Defaults to `False`** → agents can only READ & SEARCH. Set to `True` to opt in and grant full machine control. |
-| `DISALLOWED_TOOLS` | Blocked tools (by default blocks `Bash/Write/Edit/...` → agents **cannot modify the machine**) |
-| `DOCS_DIRS` | Folders the agent is allowed to **read documents** from (default: the entire machine) |
-| `ALLOW_MCP = True` | Allow MCP (Notion, Drive, Gmail, Calendar...) |
+| `tools` | Web search + read files |
+| `mcp` | MCP servers (Notion, Drive, Gmail, Calendar…) |
+| `skills` | Claude Code skills (`/skill-name`) |
+| `full` | 🔴 **Full machine control** — create/modify/delete files & run commands |
 
-- By default (`FULL_CONTROL = False`), agents **read & search** freely, but **cannot** run commands that modify/delete things on the machine (Bash/Write/Edit are blocked).
-- Setting `FULL_CONTROL = True` is an **opt-in** that grants the agents **full control of the machine** (create/modify/delete files, run commands). Use it only when you really want to hand over that level of control.
-- ⚠️ When `ALLOW_MCP = True`, some MCP tools can take *actions* (send mail, create pages). The system prompt already instructs them "do not send/create/delete on your own unless the Host asks", but for absolute safety set `ALLOW_MCP = False`.
-- While an agent is looking something up, the UI shows the status "🔎 searching the web…".
+- **Safe by default:** `full = false` → agents can **read & search** but **cannot** modify or delete anything (Bash/Write/Edit are blocked).
+- Setting **`full = true`** is an explicit opt-in that hands an agent **full control of your machine** — use it deliberately.
+- ⚠️ With MCP on, some tools can take *actions* (send mail, create pages). The system prompt tells agents not to send/create/delete unless you ask; for maximum safety, disable MCP.
 
-## Note
+---
 
-- Each message you send makes all 5 agents speak = 5 Opus calls, counted against your
-  Max plan limit (capped over a 5-hour window). Use `@name` to call one person to save quota.
+## ⚙️ Customization
+
+- **Personality:** edit the body of `.claude/agents/<key>.md` (or the 👥 Team form) → reload.
+- **Brain:** set `model:` per agent (`opus` / `sonnet` / `haiku`).
+- **Thinking depth:** `EFFORT` in `config.py` (`low` / `medium` / `high` / `xhigh` / `max`).
+- **New agent:** just use the **👥 Team** UI (it creates the `.md` + roster entry). The `key` is permanent once created.
+
+---
+
+## 📝 Note on quota
+
+Every message you send makes **each enabled agent** answer — so a 6-agent team = 6 model calls, counted against your **Claude Pro/Max** limit (over a rolling window). Call one person with `@name`, or disable agents you don't need, to save quota.
+
+---
+
+## 📦 Requirements
+
+- **Claude Pro or Max** subscription, logged in via Claude Code (`claude auth login`).
+- **Python 3.10+** (3.12/3.13 recommended), Windows.
+- Install deps: `pip install -r requirements.txt`.
+
+---
+
+Made for anyone who wishes they had a whole expert team on call. ⭐ the repo if it's useful!
