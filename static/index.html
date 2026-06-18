@@ -17,18 +17,30 @@
   }
   header {
     padding: 10px 16px; border-bottom: 1px solid var(--border);
-    display: flex; align-items: center; gap: 12px; background: var(--panel); flex-wrap: wrap;
+    display: flex; align-items: center; gap: 9px 12px; background: var(--panel); flex-wrap: wrap;
   }
-  header h1 { font-size: 15px; margin: 0; font-weight: 650; white-space: nowrap; }
-  .mtg-title { font-size: 12px; color: var(--muted); max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .toolbar { display: flex; gap: 6px; }
+  .hdr-left { display: flex; align-items: baseline; gap: 8px; min-width: 0; margin-right: auto; }
+  header h1 { font-size: 15px; margin: 0; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mtg-title { font-size: 12px; color: var(--muted); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 0; }
+  .toolbar { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
   .tbtn {
     border: 1px solid var(--border); background: var(--panel2); color: var(--text);
     border-radius: 8px; padding: 5px 10px; font-size: 12.5px; cursor: pointer;
   }
   .tbtn:hover { border-color: var(--muted); }
   .tbtn.on { background: var(--host); color: #fff; border-color: var(--host); }
-  .roster { display: flex; gap: 7px; flex-wrap: wrap; margin-left: auto; }
+  .tbtn.ico { padding: 5px 9px; font-size: 14px; line-height: 1; }   /* icon-only: tooltip on hover */
+  /* "⋯ More" dropdown */
+  .menu-wrap { position: relative; }
+  .menu { position: absolute; top: calc(100% + 6px); right: 0; z-index: 55; min-width: 190px;
+    background: var(--panel2); border: 1px solid var(--border); border-radius: 10px; padding: 6px;
+    display: none; flex-direction: column; gap: 2px; box-shadow: 0 8px 24px rgba(0,0,0,.45); }
+  .menu.show { display: flex; }
+  .menu-item { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left;
+    background: transparent; border: 0; color: var(--text); border-radius: 7px; padding: 8px 10px;
+    font-size: 13px; cursor: pointer; }
+  .menu-item:hover { background: var(--panel); }
+  .roster { display: flex; gap: 7px; flex-wrap: wrap; width: 100%; padding-top: 2px; border-top: 1px solid var(--border); margin-top: 2px; }
   .chip {
     display: flex; align-items: center; gap: 6px; padding: 4px 10px;
     border-radius: 999px; font-size: 12px; background: var(--panel2);
@@ -54,6 +66,7 @@
   }
   .body { max-width: 78%; }
   .who { font-size: 12px; color: var(--muted); margin: 0 0 4px 2px; }
+  .who .ts { opacity: .65; margin-left: 6px; font-size: 11px; font-variant-numeric: tabular-nums; }
   .msg.host .who { text-align: right; }
   .bubble {
     background: var(--panel); border: 1px solid var(--border);
@@ -96,6 +109,29 @@
   #dropHint.show { display: flex; }
   #dropHint span { background: var(--panel); border: 1px solid var(--host); border-radius: 14px; padding: 18px 26px; font-size: 16px; }
 
+  /* ===== Active-agents status bar (liveness + Stop controls) ===== */
+  #activeBar { display: none; flex-direction: column; gap: 6px; width: 100%; max-width: 860px; margin: 0 auto; padding: 10px 12px 0; }
+  #activeBar.show { display: flex; }
+  .ar-row { display: flex; align-items: center; gap: 10px; background: var(--panel2); border: 1px solid var(--border); border-radius: 10px; padding: 6px 8px 6px 11px; font-size: 12.5px; }
+  .ar-row .ar-dot { width: 8px; height: 8px; border-radius: 50%; background: #e8b84b; flex-shrink: 0; animation: arpulse 1.1s infinite ease-in-out; }
+  @keyframes arpulse { 0%,100%{opacity:.35;} 50%{opacity:1;} }
+  .ar-row .ar-emoji { font-size: 15px; flex-shrink: 0; }
+  .ar-row .ar-name { font-weight: 600; flex-shrink: 0; }
+  .ar-row .ar-act { color: #e8b84b; font-style: italic; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ar-row .ar-time { color: var(--muted); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+  .ar-stop { background: transparent; border: 1px solid var(--border); color: var(--muted); border-radius: 7px; padding: 3px 10px; cursor: pointer; font-size: 11.5px; flex-shrink: 0; }
+  .ar-stop:hover { border-color: #ff6b6b; color: #ff6b6b; }
+  /* finished state */
+  .ar-row.done .ar-dot { background: #3fb950; animation: none; }
+  .ar-row.done .ar-act { color: #3fb950; font-style: normal; }
+  .ar-row.done { transition: opacity .5s; }
+  #stopAll { align-self: flex-end; background: transparent; border: 1px solid #ff6b6b; color: #ff6b6b; border-radius: 8px; padding: 4px 12px; cursor: pointer; font-size: 12px; font-weight: 600; }
+  #stopAll:hover { background: rgba(255,107,107,.12); }
+
+  /* floating "jump to latest" button (shown only when scrolled up) */
+  #jumpBtn { position: fixed; left: 50%; transform: translateX(-50%); bottom: 92px; z-index: 40; display: none; background: var(--host); color: #fff; border: 0; border-radius: 999px; padding: 7px 16px; font-size: 12.5px; cursor: pointer; box-shadow: 0 3px 12px rgba(0,0,0,.45); }
+  #jumpBtn.show { display: block; }
+
   footer { border-top: 1px solid var(--border); background: var(--panel); padding: 12px; display: flex; justify-content: center; }
   .composer { display: flex; gap: 10px; width: 100%; max-width: 860px; }
   textarea {
@@ -135,22 +171,35 @@
 </head>
 <body>
   <header>
-    <h1>🗣️ Meeting with the A.I Team</h1>
-    <span class="mtg-title" id="mtgTitle"></span>
+    <div class="hdr-left">
+      <h1>🗣️ A.I Team Meeting</h1>
+      <span class="mtg-title" id="mtgTitle"></span>
+    </div>
     <div class="toolbar">
       <button class="tbtn" id="btnProject" title="Switch/create project — each project has its own meetings + memory + documents">📁 Projects</button>
-      <button class="tbtn" id="btnNew">➕ New</button>
-      <button class="tbtn" id="btnHistory">🕘 History</button>
-      <button class="tbtn" id="btnRelay" title="ON: agents can @mention each other and continue automatically (limited to a few hops). OFF: only the Host starts turns.">🔄 Auto-relay: OFF</button>
-      <button class="tbtn" id="btnSaveMem" title="End of meeting: each enabled agent distills & saves to its own memory">💾 Save memory</button>
-      <button class="tbtn" id="btnMemory" title="View/delete each agent's memory">🧠 Memory</button>
-      <button class="tbtn" id="btnTeam" title="Add/edit/delete team sub-agents">👥 Team</button>
-      <button class="tbtn" id="btnExport">⬇️ Word</button>
+      <button class="tbtn" id="btnNew" title="Start a new meeting">➕ New</button>
+      <button class="tbtn" id="btnRelay" title="Auto-relay — ON: agents can @mention each other and continue automatically (limited to a few hops). OFF: only the Host starts turns.">🔄 Relay: OFF</button>
+      <div class="menu-wrap">
+        <button class="tbtn" id="btnMore" title="More actions">⋯ More ▾</button>
+        <div class="menu" id="moreMenu">
+          <button class="menu-item" id="btnHistory">🕘 History</button>
+          <button class="menu-item" id="btnSaveMem">💾 Save memory</button>
+          <button class="menu-item" id="btnMemory">🧠 Memory</button>
+          <button class="menu-item" id="btnTeam">👥 Team</button>
+          <button class="menu-item" id="btnExport">⬇️ Export to Word</button>
+        </div>
+      </div>
     </div>
     <div class="roster" id="roster"></div>
   </header>
 
   <div id="chat"></div>
+
+  <!-- jump back to the latest message (appears when scrolled up) -->
+  <button id="jumpBtn">↓ Latest</button>
+
+  <!-- Live status of agents currently working (+ Stop controls) -->
+  <div id="activeBar"></div>
 
   <footer>
     <div class="composer">
@@ -313,21 +362,41 @@ function el(tag, cls, html) {
   if (html !== undefined) e.innerHTML = html;
   return e;
 }
-function scroll() { chat.scrollTop = chat.scrollHeight; }
+const jumpBtn = document.getElementById('jumpBtn');
+function isNearBottom() { return chat.scrollHeight - chat.scrollTop - chat.clientHeight < 90; }
+// Auto-scroll ONLY when the user is already near the bottom. If they've scrolled up to
+// read, don't yank them down — show the "↓ Latest" button instead.
+function scroll(force) {
+  if (force || isNearBottom()) { chat.scrollTop = chat.scrollHeight; jumpBtn.classList.remove('show'); }
+  else { jumpBtn.classList.add('show'); }
+}
+chat.addEventListener('scroll', () => { if (isNearBottom()) jumpBtn.classList.remove('show'); });
+jumpBtn.addEventListener('click', () => scroll(true));
+
+// HH:MM clock for a message; parses a stored ISO timestamp, or uses now() for live messages.
+function fmtClock(iso) {
+  const d = iso ? new Date(iso) : new Date();
+  if (isNaN(d.getTime())) return '';
+  return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+}
+function whoHtml(label, iso) {
+  const t = fmtClock(iso);
+  return label + (t ? ` <span class="ts">${t}</span>` : '');
+}
 function addSysLine(text) { chat.appendChild(el('div', 'sys', text)); scroll(); }
 
 // ---------- render messages ----------
-function addHostMessage(text) {
+function addHostMessage(text, ts) {
   const wrap = el('div', 'msg host');
   wrap.appendChild(el('div', 'avatar', '🧑'));
   const body = el('div', 'body');
-  body.appendChild(el('div', 'who', 'You (Host)'));
+  body.appendChild(el('div', 'who', whoHtml('You (Host)', ts)));
   const bubble = el('div', 'bubble');
   bubble.textContent = text;
   body.appendChild(bubble);
   wrap.appendChild(body);
   chat.appendChild(wrap);
-  scroll();
+  scroll(true);   // the Host's own message: always jump to it
 }
 function fileIcon(name) {
   const ext = (String(name).split('.').pop() || '').toLowerCase();
@@ -338,11 +407,11 @@ function fileIcon(name) {
   return '📎';
 }
 // Host message with an attached document/image brought into the meeting
-function addHostUpload(upload) {
+function addHostUpload(upload, ts) {
   const wrap = el('div', 'msg host');
   wrap.appendChild(el('div', 'avatar', '🧑'));
   const body = el('div', 'body');
-  body.appendChild(el('div', 'who', 'You (Host)'));
+  body.appendChild(el('div', 'who', whoHtml('You (Host)', ts)));
   if (upload.is_image) {
     const a = document.createElement('a');
     a.href = upload.url; a.target = '_blank';
@@ -366,14 +435,15 @@ function addHostUpload(upload) {
   chat.appendChild(wrap);
   scroll();
 }
-function agentBubble(a) {
+function agentBubble(a, ts) {
   const wrap = el('div', 'msg');
   const av = el('div', 'avatar', a ? a.emoji : '🤖');
   if (a) av.style.borderColor = a.color;
   wrap.appendChild(av);
   const body = el('div', 'body');
   const nm = a ? `<b style="color:${a.color}">${a.name}</b> <span class="role">· ${a.role}</span>` : '';
-  body.appendChild(el('div', 'who', nm));
+  const t = fmtClock(ts);
+  body.appendChild(el('div', 'who', nm + (t ? ` <span class="ts">${t}</span>` : '')));
   const bubble = el('div', 'bubble');
   bubble.style.borderColor = a ? a.color + '55' : 'var(--border)';
   body.appendChild(bubble);
@@ -394,6 +464,80 @@ function renderWorking(b) {
   b._work.appendChild(el('span', 'typing', '<span></span><span></span><span></span>'));
 }
 function clearWorking(b) { if (b && b._work) { b._work.remove(); b._work = null; } }
+
+// ---------- active-agents status bar (liveness + Stop) ----------
+const activeBar = document.getElementById('activeBar');
+const active = {};   // key -> { row, actEl, timeEl, start, timer, done }
+
+function fmtElapsed(ms) {
+  const s = Math.floor(ms / 1000);
+  return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
+}
+function sendStop(key) {
+  if (!ws || ws.readyState !== 1) return;
+  ws.send(JSON.stringify(key ? { type: 'stop', key } : { type: 'stop' }));
+}
+function renderStopAll() {
+  let btn = document.getElementById('stopAll');
+  const liveCount = Object.values(active).filter(a => !a.done).length;
+  if (liveCount >= 2) {
+    if (!btn) {
+      btn = el('button'); btn.id = 'stopAll'; btn.textContent = '⏹ Stop all';
+      btn.addEventListener('click', () => sendStop(null));
+      activeBar.appendChild(btn);
+    }
+  } else if (btn) { btn.remove(); }
+}
+function activeAdd(key, label) {
+  const a = agents[key] || {};
+  const prev = active[key];
+  if (prev) { clearInterval(prev.timer); prev.row.remove(); }   // restart fresh
+  const row = el('div', 'ar-row');
+  row.appendChild(el('span', 'ar-dot'));
+  row.appendChild(el('span', 'ar-emoji', a.emoji || '🤖'));
+  row.appendChild(el('span', 'ar-name', a.name || key));
+  const actEl = el('span', 'ar-act'); actEl.textContent = label || 'thinking…';
+  const timeEl = el('span', 'ar-time', '00:00');
+  const stop = el('button', 'ar-stop', '⏹ Stop');
+  stop.addEventListener('click', () => sendStop(key));
+  row.appendChild(actEl); row.appendChild(timeEl); row.appendChild(stop);
+  const btn = document.getElementById('stopAll');
+  if (btn) activeBar.insertBefore(row, btn); else activeBar.appendChild(row);
+  const start = Date.now();
+  const timer = setInterval(() => { timeEl.textContent = fmtElapsed(Date.now() - start); }, 1000);
+  active[key] = { row, actEl, timeEl, start, timer, done: false };
+  activeBar.classList.add('show');
+  renderStopAll();
+}
+function activeSet(key, label) {
+  const e = active[key];
+  if (e && !e.done && label && e.actEl.textContent !== label) e.actEl.textContent = label;
+}
+function activeDone(key) {
+  const e = active[key];
+  if (!e || e.done) return;
+  clearInterval(e.timer);
+  e.done = true;
+  e.row.classList.add('done');
+  e.actEl.textContent = '✅ Done · ' + fmtElapsed(Date.now() - e.start);
+  e.timeEl.textContent = '';
+  renderStopAll();
+  setTimeout(() => {
+    if (active[key] !== e) return;
+    e.row.style.opacity = '0';
+    setTimeout(() => {
+      e.row.remove();
+      if (active[key] === e) delete active[key];
+      if (!activeBar.querySelector('.ar-row')) { activeBar.classList.remove('show'); renderStopAll(); }
+    }, 500);
+  }, 3000);
+}
+function activeClearAll() {
+  Object.values(active).forEach(e => { clearInterval(e.timer); e.row.remove(); });
+  for (const k in active) delete active[k];
+  const btn = document.getElementById('stopAll'); if (btn) btn.remove();
+  activeBar.classList.remove('show');
+}
 
 function startAgentMessage(key, task) {
   const bubble = agentBubble(agents[key]);
@@ -443,10 +587,10 @@ function finishAgentMessage(key) {
 }
 // render one old log entry (non-streaming)
 function renderLogEntry(e) {
-  if (e.upload) { addHostUpload(e.upload); return; }
-  if ((e.speaker || '').startsWith('Host')) { addHostMessage(e.text || ''); return; }
+  if (e.upload) { addHostUpload(e.upload, e.ts); return; }
+  if ((e.speaker || '').startsWith('Host')) { addHostMessage(e.text || '', e.ts); return; }
   const a = Object.values(agents).find(x => x.name === e.speaker);
-  const bubble = agentBubble(a);
+  const bubble = agentBubble(a, e.ts);
   bubble.textContent = e.text || '';
   scroll();
 }
@@ -472,13 +616,13 @@ function renderMeeting(m) {
   mtgTitle.textContent = '— ' + m.title;
   agents = {}; enabledKeys.clear(); roster.innerHTML = '';
   m.agents.forEach(a => { agents[a.key] = a; enabledKeys.add(a.key); addChip(a); });
-  chat.innerHTML = ''; bubbles = {};
+  chat.innerHTML = ''; bubbles = {}; activeClearAll();
   if (!m.log || m.log.length === 0) {
     addSysLine('New meeting room. Type a topic to begin. Click a name above to enable/disable someone.');
   } else {
     m.log.forEach(renderLogEntry);
   }
-  scroll();
+  scroll(true);
 }
 
 // ---------- WebSocket ----------
@@ -493,14 +637,14 @@ function connect() {
   ws.onmessage = (ev) => {
     const m = JSON.parse(ev.data);
     if (m.type === 'meeting') renderMeeting(m);
-    else if (m.type === 'agent_start') startAgentMessage(m.key, m.task);
-    else if (m.type === 'tool') setAgentStatus(m.key, m.text);
+    else if (m.type === 'agent_start') { startAgentMessage(m.key, m.task); activeAdd(m.key, 'thinking…'); }
+    else if (m.type === 'tool') { setAgentStatus(m.key, m.text); activeSet(m.key, m.text); }
     else if (m.type === 'image') addAgentImage(m.key, m.src, m.name);
     else if (m.type === 'sys') addSysLine(m.text);
-    else if (m.type === 'token') appendToken(m.key, m.text);
-    else if (m.type === 'agent_done') finishAgentMessage(m.key);
+    else if (m.type === 'token') { appendToken(m.key, m.text); activeSet(m.key, '✍️ writing…'); }
+    else if (m.type === 'agent_done') { finishAgentMessage(m.key); activeDone(m.key); }
   };
-  ws.onclose = () => { bubbles = {}; if (!reconnectTimer) reconnectTimer = setTimeout(() => { reconnectTimer = null; connect(); }, 1500); };
+  ws.onclose = () => { bubbles = {}; activeClearAll(); if (!reconnectTimer) reconnectTimer = setTimeout(() => { reconnectTimer = null; connect(); }, 1500); };
   ws.onerror = () => { try { ws.close(); } catch (e) {} };
 }
 
@@ -518,6 +662,12 @@ function openOverlay(id) { document.getElementById(id).classList.add('show'); }
 function closeOverlay(id) { document.getElementById(id).classList.remove('show'); }
 document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => closeOverlay(b.dataset.close)));
 document.querySelectorAll('.overlay').forEach(o => o.addEventListener('click', e => { if (e.target === o) o.classList.remove('show'); }));
+
+// "⋯ More" dropdown (its items keep their original ids, so existing handlers still fire)
+const moreMenu = document.getElementById('moreMenu');
+document.getElementById('btnMore').addEventListener('click', (e) => { e.stopPropagation(); moreMenu.classList.toggle('show'); });
+moreMenu.addEventListener('click', () => moreMenu.classList.remove('show'));   // close after picking an item
+document.addEventListener('click', (e) => { if (!e.target.closest('.menu-wrap')) moreMenu.classList.remove('show'); });
 
 // New
 document.getElementById('btnNew').addEventListener('click', async () => {
@@ -580,7 +730,7 @@ document.getElementById('btnRelay').addEventListener('click', () => {
   autoRelay = !autoRelay;
   const b = document.getElementById('btnRelay');
   b.classList.toggle('on', autoRelay);
-  b.textContent = '🔄 Auto-relay: ' + (autoRelay ? 'ON' : 'OFF');
+  b.textContent = '🔄 Relay: ' + (autoRelay ? 'ON' : 'OFF');
   addSysLine(autoRelay
     ? '🔄 Auto-relay ON — agents can @mention each other and continue automatically (up to a few hops per message). You can interrupt anytime.'
     : '🔄 Auto-relay OFF — only the Host starts turns (as before).');

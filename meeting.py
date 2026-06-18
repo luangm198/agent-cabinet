@@ -17,6 +17,28 @@ import base64
 import asyncio
 import tempfile
 import mimetypes
+import subprocess
+
+
+def _kill_proc_tree(proc):
+    """Forcefully terminate a running claude.exe AND its child processes.
+    On Windows `claude.exe` spawns helper children, so proc.kill() alone would
+    leave orphans burning quota — use `taskkill /T` to kill the whole tree."""
+    if proc is None or proc.returncode is not None:
+        return
+    try:
+        if os.name == "nt":
+            subprocess.run(
+                ["taskkill", "/F", "/T", "/PID", str(proc.pid)],
+                capture_output=True,
+            )
+        else:
+            proc.kill()
+    except Exception:
+        try:
+            proc.kill()
+        except Exception:
+            pass
 
 import string
 
@@ -335,6 +357,23 @@ class Meeting:
         self.project_id = project_id or store.DEFAULT_PROJECT_ID
         self.agents = [Agent(c) for c in team if c["key"] in keys]
         self.log = log or []  # [{"speaker": str, "text": str}, ...]
+        # key -> the live claude.exe subprocess for that agent (so the Host can STOP it).
+        self.active_procs = {}
+
+    def stop_agent(self, key: str) -> bool:
+        """Kill the running claude.exe of one agent. Returns True if one was running."""
+        proc = self.active_procs.get(key)
+        if proc is None:
+            return False
+        _kill_proc_tree(proc)
+        return True
+
+    def stop_all(self) -> list:
+        """Kill every running agent. Returns the list of keys that were running."""
+        running = list(self.active_procs.keys())
+        for k in running:
+            _kill_proc_tree(self.active_procs.get(k))
+        return running
 
     @classmethod
     def from_dict(cls, d):
@@ -353,7 +392,7 @@ class Meeting:
         }
 
     def add_human(self, text: str):
-        self.log.append({"speaker": "Host (human)", "text": text})
+        self.log.append({"speaker": "Host (human)", "text": text, "ts": store.now_iso()})
 
     def _transcript(self) -> str:
         return "\n".join(f"{e['speaker']}: {e['text']}" for e in self.log)
@@ -405,7 +444,7 @@ class Meeting:
 
             # Got real content -> done.
             if full.strip():
-                self.log.append({"speaker": agent.name, "text": full})
+                self.log.append({"speaker": agent.name, "text": full, "ts": store.now_iso()})
                 return
 
             # No text: decide whether to retry.
@@ -423,7 +462,7 @@ class Meeting:
                 msg = f"[error: {error_text}]"
                 yield ("text", msg)
                 full = msg
-            self.log.append({"speaker": agent.name, "text": full})
+            self.log.append({"speaker": agent.name, "text": full, "ts": store.now_iso()})
             return
 
     async def _attempt(self, agent: Agent, prompt: str = None):
@@ -475,6 +514,8 @@ class Meeting:
             cwd=HOME_DIR,                       # sit in the Host's home folder -> correct paths
             limit=2 ** 22,                      # widen the buffer (4MB)
         )
+        # register so the Host can STOP this agent mid-run (see Meeting.stop_agent)
+        self.active_procs[agent.key] = proc
 
         # send the prompt via stdin (avoids command-line length limits for long meetings)
         proc.stdin.write(prompt.encode("utf-8"))
@@ -559,6 +600,7 @@ class Meeting:
             yield ("text", pending)
 
         await proc.wait()
+        self.active_procs.pop(agent.key, None)   # no longer stoppable once finished
 
         # Report back to stream_agent: streamed content + error (if any) to decide on retry.
         yield ("__done__", {"text": full, "error": error_text})

@@ -204,7 +204,7 @@ async def upload_doc(mid: str, file: UploadFile = File(...)):
         "url": f"/meetings/{mid}/file/{safe_name}",
         "is_image": is_img,
     }
-    entry = {"speaker": "Host (human)", "text": text, "upload": upload_meta}
+    entry = {"speaker": "Host (human)", "text": text, "upload": upload_meta, "ts": store.now_iso()}
     d.setdefault("log", []).append(entry)
     store.save(d)
     return {"ok": True, "upload": upload_meta}
@@ -247,6 +247,7 @@ async def ws(websocket: WebSocket):
         "hops_left": 0,            # remaining relay budget for the Host's current message
         "chain_counts": {},        # key -> how many times this agent spoke in the current relay chain
         "enabled_agents": [],      # the agents enabled at the moment the Host sent the message
+        "stopped_keys": set(),     # agents the Host just STOPPED -> suppress their auto-relay handoff
     }
     out_queue: asyncio.Queue = asyncio.Queue()   # every outgoing event goes through here (single sender)
     agent_queues: dict = {}                       # key -> work queue assigned to the agent
@@ -330,6 +331,11 @@ async def ws(websocket: WebSocket):
         await send({"type": "agent_done", "key": agent.key})
         await save_meeting()
 
+        # If the Host STOPPED this agent, don't auto-relay off its (partial) words.
+        if agent.key in state["stopped_keys"]:
+            state["stopped_keys"].discard(agent.key)
+            return
+
         # AUTO-RELAY: if the speaker @mentioned someone (enabled) -> queue a turn for them.
         # If a mention was dropped because a cap was hit, tell the Host why so it doesn't
         # look like the relay silently broke.
@@ -392,6 +398,16 @@ async def ws(websocket: WebSocket):
         if agent.key not in agent_workers:
             agent_queues[agent.key] = asyncio.Queue()
             agent_workers[agent.key] = asyncio.create_task(agent_worker(agent))
+
+    def drain_queue(q):
+        """Drop all not-yet-started tasks from a worker's queue."""
+        if q is None:
+            return
+        try:
+            while True:
+                q.get_nowait()
+        except asyncio.QueueEmpty:
+            pass
 
     try:
         while True:
@@ -483,6 +499,29 @@ async def ws(websocket: WebSocket):
                 for agent in speakers:
                     ensure_worker(agent)
                     await agent_queues[agent.key].put(("chat", text))
+                continue
+
+            # ----- STOP a running agent (key given) or ALL of them (no key) -----
+            if mtype == "stop":
+                meeting = state["meeting"]
+                if meeting is None:
+                    continue
+                key = data.get("key")
+                if key:
+                    drain_queue(agent_queues.get(key))     # drop this agent's pending turns
+                    state["stopped_keys"].add(key)         # suppress its relay handoff
+                    if meeting.stop_agent(key):
+                        await send({"type": "sys",
+                                    "text": f"⏹ Stopped {roster.name_of(key) or key}."})
+                else:
+                    state["hops_left"] = 0                  # block auto-relay from spawning more
+                    for q in agent_queues.values():
+                        drain_queue(q)
+                    running = meeting.stop_all()
+                    state["stopped_keys"].update(running)
+                    await send({"type": "sys",
+                                "text": "⏹ Stopped all agents."
+                                        if running else "(Nothing is running.)"})
                 continue
 
             # ----- end-of-meeting memory save: each enabled agent distills on its own -----
